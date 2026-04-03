@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OPA VOCAB ELITE - 16 Levels</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        :root { --primary: #6366f1; --secondary: #a855f7; --bg: #f8fafc; --syl-1: #ff4757; --syl-2: #2e86de; --success: #22c55e; --danger: #ef4444; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; color: #1e293b; }
+        .container { max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: white; box-shadow: 0 0 50px rgba(0,0,0,0.05); }
+        
+        header { background: linear-gradient(135deg, var(--primary), var(--secondary)); padding: 25px 20px; color: white; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; text-align: center; }
+        h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+
+        .controls { padding: 20px; margin-top: -20px; }
+        .glass-box { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 12px; }
+        
+        .tab-row, .mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mode-row { grid-template-columns: 1fr 1fr 1fr; }
+        .tab-btn, .mode-btn { padding: 12px; border-radius: 12px; border: none; background: #f1f5f9; cursor: pointer; font-weight: 700; color: #64748b; font-size: 13px; transition: 0.2s; }
+        .tab-btn.active, .mode-btn.active { background: var(--primary); color: white; }
+        .mode-btn.active { background: #333; }
+
+        .btn-main { border: none; border-radius: 12px; padding: 16px; font-weight: 800; background: var(--primary); color: white; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        
+        /* 直觀式清單卡片樣式 */
+        #list-container { padding: 0 20px 40px; }
+        .word-card { border: 1px solid #e2e8f0; border-radius: 15px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; background: white; }
+        .word-info { flex: 1; }
+        .syllable-display { font-size: 24px; font-weight: 800; margin-bottom: 5px; }
+        .syl-0 { color: var(--syl-1); } .syl-1 { color: var(--syl-2); }
+        .meaning { font-weight: 700; color: #444; margin-bottom: 5px; }
+        .sentence-box { background: #f9f9fb; padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 13px; border-left: 3px solid var(--primary); color: #555; }
+        
+        .action-row { display: flex; gap: 8px; margin-top: 10px; }
+        .mini-btn { padding: 10px 14px; border-radius: 12px; background: #f1f5f9; border: none; font-size: 14px; cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center; }
+        
+        .mastery-btns { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
+        .m-btn { border: none; background: #f1f5f9; width: 42px; height: 42px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        .m-btn.known.active { background: var(--success); color: white; }
+        .m-btn.unknown.active { background: var(--danger); color: white; }
+
+        #test-area { padding: 40px 20px; text-align: center; flex: 1; }
+        .spell-input { width: 100%; padding: 18px; font-size: 32px; border: 3px solid #e2e8f0; border-radius: 20px; text-align: center; outline: none; font-family: monospace; box-sizing: border-box; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="home-screen">
+        <header><h1>OPA VOCAB ELITE</h1></header>
+        <div class="controls">
+            <div class="glass-box">
+                <div class="tab-row">
+                    <button id="tab-all" class="tab-btn active" onclick="switchView('all')">等級選單</button>
+                    <button id="tab-weak" class="tab-btn" onclick="switchView('weak')">❌ 全域待加強 (<span id="weak-count">0</span>)</button>
+                </div>
+                
+                <div id="level-selector-div">
+                    <select id="level-select" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;" onchange="loadData()">
+                        <script>for(let i=1; i<=16; i++) document.write(`<option value="${i}">Level ${i}</option>`);</script>
+                    </select>
+                </div>
+
+                <div class="mode-row">
+                    <button id="m-meaning" class="mode-btn active" onclick="setQuizMode('meaning', this)">看中文</button>
+                    <button id="m-sentence" class="mode-btn" onclick="setQuizMode('sentence', this)">看例句</button>
+                    <button id="m-audio" class="mode-btn" onclick="setQuizMode('audio', this)">聽讀音</button>
+                </div>
+
+                <button class="btn-main" onclick="startQuiz(10)"><i class="fa-solid fa-play"></i> 開始隨機測驗</button>
+            </div>
+        </div>
+        <div id="list-container"></div>
+    </div>
+
+    <div id="test-area" class="hidden">
+        <div id="quiz-progress" style="color:#94a3b8; font-weight:600; margin-bottom:10px;"></div>
+        <div id="prompt-content" style="font-size:24px; font-weight:800; margin-bottom:30px; min-height:60px; display:flex; flex-direction:column; justify-content:center; line-height:1.4;"></div>
+        <input type="url" id="spell-input" class="spell-input" placeholder="在此輸入..." autocomplete="off" autocorrect="off" autocapitalize="none" onkeyup="if(event.key==='Enter') checkSpelling()">
+        <div id="feedback" style="height: 35px; font-weight: 800; margin: 15px 0; font-size: 22px;"></div>
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:30px;">
+            <button class="mini-btn" onclick="replayVoice(0.8)"><i class="fa-solid fa-volume-high"></i> 重聽</button>
+            <button class="mini-btn" onclick="replaySlow()"><i class="fa-solid fa-turtle"></i> 慢速</button>
+        </div>
+        <button class="mini-btn" style="width:100%; height:50px; background:#f1f5f9; font-weight: bold;" onclick="location.reload()">結束並退出</button>
+    </div>
+</div>
+
+<script src="words1.js"></script><script src="words2.js"></script><script src="words3.js"></script>
+<script src="words4.js"></script><script src="words5.js"></script><script src="words6.js"></script>
+<script src="words7.js"></script><script src="words8.js"></script><script src="words9.js"></script>
+<script src="words10.js"></script><script src="words11.js"></script><script src="words12.js"></script>
+<script src="words13.js"></script><script src="words14.js"></script><script src="words15.js"></script>
+<script src="words16.js"></script>
+
+<script>
+    let currentWords = [], quizQueue = [], currentIdx = 0, score = 0;
+    let currentView = 'all', quizMode = 'meaning';
+    let masteryData = JSON.parse(localStorage.getItem('opa_mastery') || '{}');
+
+    window.onload = () => { loadData(); updateWeakCount(); };
+
+    function loadData() {
+        const lv = document.getElementById('level-select').value;
+        currentWords = window["lv"+lv+"Data"] || [];
+        refreshDisplay();
+    }
+
+    function updateWeakCount() {
+        // 修正：檢查 1~16 級
+        let count = 0;
+        for(let i=1; i<=16; i++) {
+            const data = window["lv"+i+"Data"];
+            if(data) {
+                count += data.filter(w => masteryData[w.word] === 'unknown').length;
+            }
+        }
+        document.getElementById('weak-count').innerText = count;
+    }
+
+    function setQuizMode(m, btn) {
+        quizMode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function switchView(view) {
+        currentView = view;
+        document.getElementById('tab-all').classList.toggle('active', view === 'all');
+        document.getElementById('tab-weak').classList.toggle('active', view === 'weak');
+        document.getElementById('level-selector-div').style.display = (view === 'all') ? 'block' : 'none';
+        refreshDisplay();
+    }
+
+    function refreshDisplay() {
+        let displayList = [];
+        if (currentView === 'weak') {
+            // 修正：掃描 1~16 級
+            for(let i=1; i<=16; i++) {
+                const lvData = window["lv"+i+"Data"];
+                if(lvData) {
+                    displayList = displayList.concat(lvData.filter(w => masteryData[w.word] === 'unknown'));
+                }
+            }
+        } else {
+            displayList = currentWords;
+        }
+        renderFlatList(displayList);
+    }
+
+    function setMastery(word, status, btnEl) {
+        if (masteryData[word] === status) delete masteryData[word];
+        else masteryData[word] = status;
+        
+        localStorage.setItem('opa_mastery', JSON.stringify(masteryData));
+        updateWeakCount();
+        
+        if (btnEl) {
+            const p = btnEl.parentElement;
+            p.querySelector('.known').classList.toggle('active', masteryData[word] === 'known');
+            p.querySelector('.unknown').classList.toggle('active', masteryData[word] === 'unknown');
+            if(currentView === 'weak' && status === 'known') setTimeout(() => refreshDisplay(), 300);
+        }
+    }
+
+    // 直觀清單渲染函數 (取消 A-Z 分組)
+    function renderFlatList(words) {
+        const container = document.getElementById('list-container');
+        container.innerHTML = words.length ? "" : `<p style="text-align:center;padding:50px;color:#94a3b8">目前清單是空的</p>`;
+        
+        words.forEach(w => {
+            const ms = masteryData[w.word] || '';
+            const syls = (w.syllables||[w.word]).map((sy,i)=>`<span class="syl-${i%2}">${sy}</span>`).join('');
+            const card = document.createElement('div');
+            card.className = 'word-card';
+            card.innerHTML = `
+                <div class="word-info">
+                    <div class="syllable-display">${syls}</div>
+                    <div class="meaning">${w.meaning}</div>
+                    ${w.sentence ? `<div class="sentence-box">${w.sentence}<div style="color:#999;font-size:12px;margin-top:4px">${w.sentence_cn||''}</div></div>` : ''}
+                    <div class="action-row">
+                        <button class="mini-btn" title="聽發音" onclick="speak('${w.word}',0.8)"><i class="fa-solid fa-volume-high"></i></button>
+                        <button class="mini-btn" title="慢速發音" onclick='speakSyllables(${JSON.stringify(w.syllables)})'><i class="fa-solid fa-turtle"></i></button>
+                        ${w.sentence ? `<button class="mini-btn" title="聽例句" onclick="speak('${w.sentence.replace(/'/g,"\\'")}',0.8)"><i class="fa-solid fa-book"></i></button>` : ''}
+                    </div>
+                </div>
+                <div class="mastery-btns">
+                    <button class="m-btn known ${ms==='known'?'active':''}" onclick="setMastery('${w.word}','known', this)">✅</button>
+                    <button class="m-btn unknown ${ms==='unknown'?'active':''}" onclick="setMastery('${w.word}','unknown', this)">❌</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function speak(t, r) { window.speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(t); m.lang = 'en-US'; m.rate = r; window.speechSynthesis.speak(m); }
+    function speakSyllables(arr) {
+        window.speechSynthesis.cancel(); let i = 0;
+        function nxt() {
+            if (i < arr.length) {
+                const m = new SpeechSynthesisUtterance(arr[i]);
+                m.lang = 'en-US'; m.rate = 0.5;
+                m.onend = () => { i++; setTimeout(nxt, 400); };
+                window.speechSynthesis.speak(m);
+            }
+        }
+        nxt();
+    }
+
+    function startQuiz(n) {
+        let pool = [];
+        if (currentView === 'weak') {
+            for(let i=1; i<=16; i++) {
+                if(window["lv"+i+"Data"]) pool = pool.concat(window["lv"+i+"Data"].filter(w => masteryData[w.word] === 'unknown'));
+            }
+        } else {
+            pool = currentWords;
+        }
+        if(quizMode === 'sentence') pool = pool.filter(w => w.sentence);
+        if(!pool.length) return alert("清單沒有符合條件的單字！");
+        
+        quizQueue = pool.sort(() => Math.random() - 0.5).slice(0, n);
+        currentIdx = 0; score = 0;
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('test-area').classList.remove('hidden');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if(currentIdx >= quizQueue.length) {
+            const perf = (score / quizQueue.length) * 100;
+            document.getElementById('test-area').innerHTML = `<h2>測驗結束</h2><div style="font-size:60px;color:var(--primary);font-weight:900;">${score}/${quizQueue.length}</div><button class="btn-main" style="width:100%" onclick="location.reload()">回到列表</button>`;
+            if(perf === 100) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            return;
+        }
+        const item = quizQueue[currentIdx];
+        document.getElementById('quiz-progress').innerText = `STEP ${currentIdx + 1} / ${quizQueue.length}`;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('spell-input').value = ""; document.getElementById('spell-input').focus();
+        
+        const content = document.getElementById('prompt-content');
+        if(quizMode === 'meaning') content.innerHTML = `<div>${item.meaning}</div>`;
+        else if(quizMode === 'sentence') content.innerHTML = `<div>${item.sentence.replace(new RegExp(item.word, 'gi'), "____")}</div><div style="font-size:16px;color:var(--primary);margin-top:10px;font-weight:normal;">${item.sentence_cn || ''}</div>`;
+        else content.innerHTML = `<i class="fa-solid fa-ear-listen" style="font-size:40px;color:var(--primary)"></i>`;
+        speak(item.word, 0.8);
+    }
+
+    function checkSpelling() {
+        const user = document.getElementById('spell-input').value.trim().toLowerCase();
+        const cor = quizQueue[currentIdx].word.toLowerCase();
+        const fb = document.getElementById('feedback');
+        
+        if(user === cor) {
+            score++; 
+            fb.innerHTML = "<span style='color:var(--success)'>EXCELLENT! ✨</span>";
+            if (currentView === 'weak') {
+                masteryData[cor] = 'known';
+                localStorage.setItem('opa_mastery', JSON.stringify(masteryData));
+            }
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
+            setTimeout(() => { currentIdx++; showQuestion(); }, 800);
+        } else {
+            masteryData[quizQueue[currentIdx].word] = 'unknown';
+            localStorage.setItem('opa_mastery', JSON.stringify(masteryData));
+            updateWeakCount();
+            fb.innerHTML = `<span style="color:var(--danger)">Correct: ${cor}</span>`;
+            speak(cor, 0.7);
+            setTimeout(() => { currentIdx++; showQuestion(); }, 2500);
+        }
+    }
+    function replayVoice(r) { speak(quizQueue[currentIdx].word, r); }
+    function replaySlow() { speakSyllables(quizQueue[currentIdx].syllables || [quizQueue[currentIdx].word]); }
+</script>
+</body>
+</html>
